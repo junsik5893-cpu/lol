@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>롤 5:5 내전 팀 짜기</title>
+  <!--  -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen py-8 px-4">
+
+  <div class="max-w-3xl mx-auto space-y-6">
+    
+    <!-- 상단 제목 -->
+    <header class="text-center space-y-1">
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">롤 5:5 내전 팀 짜기</h1>
+      <p class="text-sm text-slate-500">참여할 10명을 선택한 뒤 원하는 방식을 눌러주세요.</p>
+    </header>
+
+    <!-- 알림 메시지 박스 (alert 대신 사용) -->
+    <div id="toast" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white bg-slate-800 transition-opacity duration-300">
+      메시지 내용
+    </div>
+
+    <!-- 1. 플레이어 선택 영역 -->
+    <section class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <h2 class="font-bold text-lg text-slate-800">참가자 선택</h2>
+          <span id="selectedCount" class="px-2.5 py-0.5 text-sm font-bold rounded-full bg-slate-100 text-slate-600">
+            0 / 10명
+          </span>
+        </div>
+        
+        <!-- 편의 기능 버튼 -->
+        <div class="flex gap-2">
+          <button onclick="pickRandomTen()" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            10명 랜덤 선택
+          </button>
+          <button onclick="clearSelection()" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            전체 해제
+          </button>
+        </div>
+      </div>
+
+      <!-- 플레이어 버튼 그리드 -->
+      <div id="playerGrid" class="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
+        <!-- JS로 플레이어 버튼이 렌더링됩니다 -->
+      </div>
+
+      <!-- 임시 인원 추가 입력창 -->
+      <div class="pt-2 border-t border-slate-100 flex gap-2">
+        <input 
+          type="text" 
+          id="newPlayerInput" 
+          placeholder="새 플레이어 이름 추가 (엔터)" 
+          onkeypress="if(event.key === 'Enter') addPlayer()"
+          class="flex-1 px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-slate-500"
+        >
+        <button onclick="addPlayer()" class="px-4 py-2 text-sm font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition">
+          추가
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. 팀 생성 실행 버튼 -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <button onclick="generateTeams(false)" class="py-3.5 px-5 rounded-xl font-bold text-white bg-slate-800 hover:bg-slate-700 active:scale-[0.99] transition shadow-sm">
+        팀만 랜덤 짜기
+      </button>
+      <button onclick="generateTeams(true)" class="py-3.5 px-5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] transition shadow-sm">
+        팀 + 라인 랜덤 짜기
+      </button>
+    </section>
+
+    <!-- 3. 결과 표시 영역 -->
+    <section id="resultSection" class="hidden space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        
+        <!-- 블루팀 카드 -->
+        <div class="bg-white rounded-2xl border-2 border-[#2563eb] overflow-hidden shadow-sm">
+          <div class="bg-[#2563eb] text-white px-5 py-3 font-bold text-center text-lg">
+            블루팀 (BLUE)
+          </div>
+          <ul id="blueTeamList" class="divide-y divide-slate-100 p-2">
+            <!-- JS로 블루팀 멤버 출력 -->
+          </ul>
+        </div>
+
+        <!-- 레드팀 카드 -->
+        <div class="bg-white rounded-2xl border-2 border-[#dc2626] overflow-hidden shadow-sm">
+          <div class="bg-[#dc2626] text-white px-5 py-3 font-bold text-center text-lg">
+            레드팀 (RED)
+          </div>
+          <ul id="redTeamList" class="divide-y divide-slate-100 p-2">
+            <!-- JS로 레드팀 멤버 출력 -->
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- 결과 복사 버튼 -->
+      <div class="flex justify-center">
+        <button onclick="copyResult()" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 shadow-sm transition">
+          결과 복사하기 (카톡/디코용)
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // 기본 15명 플레이어 명단
+    let players = [
+      "김범수", "이경우", "이준호", "이예준", "권예준",
+      "장호담", "김준식", "박태강", "지민혁", "박성현",
+      "김동현", "이승호", "강서진", "안수원", "성유하"
+    ];
+
+    // 선택된 플레이어들을 저장하는 Set
+    let selectedPlayers = new Set();
+
+    // 롤 5개 포지션
+    const LANES = ["탑", "정글", "미드", "원딜", "서포터"];
+
+    // 클립보드 복사를 위한 마지막 결과 텍스트
+    let lastResultText = "";
+
+    // 초기 화면 렌더링
+    function renderPlayers() {
+      const grid = document.getElementById("playerGrid");
+      grid.innerHTML = "";
+
+      players.forEach(name => {
+        const isSelected = selectedPlayers.has(name);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = name;
+        btn.onclick = () => togglePlayer(name);
+
+        // 선택 여부에 따른 깔끔한 스타일 적용
+        btn.className = isSelected
+          ? "py-2.5 px-3 rounded-xl text-sm font-bold bg-slate-800 text-white border border-slate-800 transition"
+          : "py-2.5 px-3 rounded-xl text-sm font-medium bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 transition";
+
+        grid.appendChild(btn);
+      });
+
+      updateCountBadge();
+    }
+
+    // 인원 수 카운터 업데이트
+    function updateCountBadge() {
+      const badge = document.getElementById("selectedCount");
+      const count = selectedPlayers.size;
+      badge.textContent = `${count} / 10명`;
+
+      if (count === 10) {
+        badge.className = "px-2.5 py-0.5 text-sm font-bold rounded-full bg-emerald-100 text-emerald-700";
+      } else if (count > 10) {
+        badge.className = "px-2.5 py-0.5 text-sm font-bold rounded-full bg-rose-100 text-rose-700";
+      } else {
+        badge.className = "px-2.5 py-0.5 text-sm font-bold rounded-full bg-slate-100 text-slate-600";
+      }
+    }
+
+    // 플레이어 선택/해제 토글
+    function togglePlayer(name) {
+      if (selectedPlayers.has(name)) {
+        selectedPlayers.delete(name);
+      } else {
+        selectedPlayers.add(name);
+      }
+      renderPlayers();
+    }
+
+    // 새 플레이어 추가
+    function addPlayer() {
+      const input = document.getElementById("newPlayerInput");
+      const name = input.value.trim();
+
+      if (!name) return;
+      if (players.includes(name)) {
+        showToast("이미 목록에 있는 이름입니다.");
+        return;
+      }
+
+      players.push(name);
+      if (selectedPlayers.size < 10) {
+        selectedPlayers.add(name);
+      }
+      input.value = "";
+      renderPlayers();
+      showToast(`'${name}' 플레이어가 추가되었습니다.`);
+    }
+
+    // 10명 무작위 자동 선택
+    function pickRandomTen() {
+      selectedPlayers.clear();
+      const shuffled = shuffleArray([...players]);
+      shuffled.slice(0, 10).forEach(name => selectedPlayers.add(name));
+      renderPlayers();
+    }
+
+    // 전체 선택 해제
+    function clearSelection() {
+      selectedPlayers.clear();
+      renderPlayers();
+    }
+
+    // 피셔-예이츠(Fisher-Yates) 배열 섞기 함수
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // 팀 생성 메인 함수 (withLanes: true면 라인까지 배정)
+    function generateTeams(withLanes) {
+      if (selectedPlayers.size !== 10) {
+        showToast(`정확히 10명을 선택해주세요! (현재 ${selectedPlayers.size}명 선택됨)`);
+        return;
+      }
+
+      // 선택된 10명을 무작위로 섞은 뒤 5명씩 분할
+      const shuffledPlayers = shuffleArray(Array.from(selectedPlayers));
+      const blueTeam = shuffledPlayers.slice(0, 5);
+      const redTeam = shuffledPlayers.slice(5, 10);
+
+      // 화면 렌더링 및 복사용 텍스트 생성
+      renderTeamList("blueTeamList", blueTeam, withLanes, "text-[#2563eb]");
+      renderTeamList("redTeamList", redTeam, withLanes, "text-[#dc2626]");
+
+      // 결과 영역 보이기
+      const resultSection = document.getElementById("resultSection");
+      resultSection.classList.remove("hidden");
+
+      // 복사용 문자열 정리
+      if (withLanes) {
+        const blueText = blueTeam.map((p, idx) => `${LANES[idx]}: ${p}`).join("\n");
+        const redText = redTeam.map((p, idx) => `${LANES[idx]}: ${p}`).join("\n");
+        lastResultText = `[블루팀]\n${blueText}\n\n[레드팀]\n${redText}`;
+      } else {
+        lastResultText = `[블루팀]\n${blueTeam.join(", ")}\n\n[레드팀]\n${redTeam.join(", ")}`;
+      }
+    }
+
+    // 각 팀 리스트 HTML 렌더링
+    function renderTeamList(elementId, teamMembers, withLanes, accentColorClass) {
+      const listEl = document.getElementById(elementId);
+      listEl.innerHTML = "";
+
+      teamMembers.forEach((member, index) => {
+        const li = document.createElement("li");
+        li.className = "py-3 px-4 flex items-center justify-between";
+
+        if (withLanes) {
+          li.innerHTML = `
+            <span class="text-xs font-bold px-2.5 py-1 rounded-md bg-slate-100 ${accentColorClass}">
+              ${LANES[index]}
+            </span>
+            <span class="font-bold text-slate-800">${member}</span>
+          `;
+        } else {
+          li.innerHTML = `
+            <span class="text-xs font-medium text-slate-400">#${index + 1}</span>
+            <span class="font-bold text-slate-800 mx-auto">${member}</span>
+          `;
+        }
+
+        listEl.appendChild(li);
+      });
+    }
+
+    // 결과 클립보드 복사 (iframe 환경 호환 방식)
+    function copyResult() {
+      if (!lastResultText) return;
+
+      const tempTextarea = document.createElement("textarea");
+      tempTextarea.value = lastResultText;
+      document.body.appendChild(tempTextarea);
+      tempTextarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempTextarea);
+
+      showToast("팀 결과가 클립보드에 복사되었습니다!");
+    }
+
+    // 상단 토스트 알림 표시
+    let toastTimer = null;
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.remove("hidden");
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 2500);
+    }
+
+    // 페이지 로드 시 플레이어 버튼 초기화
+    renderPlayers();
+  </script>
+</body>
+</html>
